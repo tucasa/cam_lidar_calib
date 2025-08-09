@@ -104,7 +104,7 @@ public:
         camera_name = readParam<std::string>(nh, "camera_name");
         cloud_sub =  new message_filters::Subscriber<sensor_msgs::PointCloud2>(nh, lidar_in_topic, 1);
         image_sub = new message_filters::Subscriber<sensor_msgs::Image>(nh, camera_in_topic, 1);
-        std::string lidarOutTopic = camera_in_topic + "/velodyne_out_cloud";
+        std::string lidarOutTopic = camera_in_topic + "/colored_cloud";
         cloud_pub = nh.advertise<sensor_msgs::PointCloud2>(lidarOutTopic, 1);
         std::string imageOutTopic = camera_in_topic + "/projected_image";
         image_pub = nh.advertise<sensor_msgs::Image>(imageOutTopic, 1);
@@ -277,7 +277,10 @@ public:
 
         for(size_t i = 0; i < objectPoints_L.size(); i++) {
             cv::Vec3b rgb = atf(image_in, imagePoints[i]);
-            pcl::PointXYZRGB pt_rgb(rgb.val[2], rgb.val[1], rgb.val[0]);
+            pcl::PointXYZRGB pt_rgb;
+            pt_rgb.r = rgb.val[2];
+            pt_rgb.g = rgb.val[1];
+            pt_rgb.b = rgb.val[0];
             pt_rgb.x = objectPoints_L[i].x;
             pt_rgb.y = objectPoints_L[i].y;
             pt_rgb.z = objectPoints_L[i].z;
