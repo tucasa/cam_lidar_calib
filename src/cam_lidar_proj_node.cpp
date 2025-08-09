@@ -235,9 +235,14 @@ public:
         cv::Vec3i color_i;
         color_i.val[0] = color_i.val[1] = color_i.val[2] = 0;
 
-        int x = xy_f.x;
-        int y = xy_f.y;
+        int x = static_cast<int>(std::round(xy_f.x));
+        int y = static_cast<int>(std::round(xy_f.y));
 
+        if (x < 0 || y < 0 || x + 1 >= rgb.cols || y + 1 >= rgb.rows) {
+            //ROS_WARN("Projected point out of bounds: (x=%d, y=%d), image size=(%d, %d)", x, y, rgb.cols, rgb.rows);
+            return cv::Vec3b(0, 0, 0);
+        }
+        
         for (int row = 0; row <= 1; row++){
             for (int col = 0; col <= 1; col++){
                 if((x+col)< rgb.cols && (y+row) < rgb.rows) {
