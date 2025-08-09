@@ -292,11 +292,11 @@ public:
         }
 //        ROS_INFO_STREAM("No of planar_pts: " << lidar_points.size());
         ROS_WARN_STREAM("No of planar_pts: " << plane_filtered->points.size());
-//        sensor_msgs::PointCloud2 out_cloud;
-//        pcl::toROSMsg(*plane_filtered, out_cloud);
-//        out_cloud.header.frame_id = cloud_msg->header.frame_id;
-//        out_cloud.header.stamp = cloud_msg->header.stamp;
-//        cloud_pub.publish(out_cloud);
+        sensor_msgs::PointCloud2 out_cloud;
+        pcl::toROSMsg(*plane_filtered, out_cloud);
+        out_cloud.header.frame_id = cloud_msg->header.frame_id;
+        out_cloud.header.stamp = cloud_msg->header.stamp;
+        cloud_pub.publish(out_cloud);
     }
 
     void imageHandler(const sensor_msgs::ImageConstPtr &image_msg) {
