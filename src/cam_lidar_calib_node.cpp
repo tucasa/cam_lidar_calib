@@ -265,6 +265,11 @@ public:
         pass_z.setFilterLimits(z_min, z_max);
         pass_z.filter(*cloud_filtered_z);
 
+        if (cloud_filtered_z->size() <= 0) {
+            ROS_WARN_STREAM("Number of planar_pts <= 0");
+            return;
+        }
+
         /// Plane Segmentation
         pcl::SampleConsensusModelPlane<pcl::PointXYZ>::Ptr model_p(
                 new pcl::SampleConsensusModelPlane<pcl::PointXYZ>(cloud_filtered_z));
