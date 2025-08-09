@@ -1,0 +1,22 @@
+<?xml version="1.0"?>
+<launch>
+  <!-- Project LiDAR points onto Basler camera image -->
+  <node pkg="cam_lidar_calib" exec="cam_lidar_proj_node" name="cam_lidar_proj_c1_os1" output="screen">
+    <param name="use_sim_time" value="true" />
+
+    <!-- calibration result -->
+    <param name="result_file" value="$(find-pkg-share cam_lidar_calib)/result/C_T_L_c1_os1.txt" />
+
+    <!-- projection options -->
+    <param name="project_only_plane" value="false" />
+    <param name="dist_cut_off" value="5" />
+
+    <!-- topics -->
+    <param name="camera_in_topic" value="/front_center/image_raw" />
+    <param name="lidar_in_topic" value="/ouster/points" />
+    <param name="camera_name" value="front_center" />
+
+    <!-- camera intrinsics -->
+    <param name="cam_config_file_path" value="$(find-pkg-share cam_lidar_calib)/config/c1_camera0.yaml" />
+  </node>
+</launch> 

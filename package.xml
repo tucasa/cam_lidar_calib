@@ -1,0 +1,46 @@
+<?xml version="1.0"?>
+<package format="3">
+  <name>cam_lidar_calib</name>
+  <version>0.0.0</version>
+  <description>Camera-LiDAR extrinsic calibration utilities (ROS 2)</description>
+
+  <maintainer email="subodh@todo.todo">subodh</maintainer>
+  <license>BSD</license>
+
+  <!-- Build tool -->
+  <buildtool_depend>ament_cmake</buildtool_depend>
+
+  <!-- Build dependencies -->
+  <build_depend>rclcpp</build_depend>
+  <build_depend>sensor_msgs</build_depend>
+  <build_depend>message_filters</build_depend>
+  <build_depend>cv_bridge</build_depend>
+  <build_depend>pcl_conversions</build_depend>
+  <build_depend>pcl_ros</build_depend>
+  <build_depend>tf2</build_depend>
+  <build_depend>tf2_ros</build_depend>
+  <build_depend>tf2_eigen</build_depend>
+  <build_depend>tf2_geometry_msgs</build_depend>
+
+  <!-- Execution dependencies -->
+  <exec_depend>rclcpp</exec_depend>
+  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>message_filters</exec_depend>
+  <exec_depend>cv_bridge</exec_depend>
+  <exec_depend>pcl_conversions</exec_depend>
+  <exec_depend>pcl_ros</exec_depend>
+  <exec_depend>tf2</exec_depend>
+  <exec_depend>tf2_ros</exec_depend>
+  <exec_depend>tf2_eigen</exec_depend>
+  <exec_depend>tf2_geometry_msgs</exec_depend>
+
+  <!-- System library deps (via apt) -->
+  <depend>eigen3</depend>
+  <depend>ceres-solver</depend>
+  <depend>opencv</depend>
+  <depend>pcl</depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>
