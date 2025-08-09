@@ -242,7 +242,7 @@ public:
             //ROS_WARN("Projected point out of bounds: (x=%d, y=%d), image size=(%d, %d)", x, y, rgb.cols, rgb.rows);
             return cv::Vec3b(0, 0, 0);
         }
-        
+
         for (int row = 0; row <= 1; row++){
             for (int col = 0; col <= 1; col++){
                 if((x+col)< rgb.cols && (y+row) < rgb.rows) {
@@ -325,7 +325,7 @@ public:
             }
             cv::projectPoints(objectPoints_L, rvec, tvec, projection_matrix, distCoeff, imagePoints, cv::noArray());
         } else {
-            pcl::PCLPointCloud2 *cloud_in = new pcl::PCLPointCloud2;
+            auto cloud_in = std::make_shared<pcl::PCLPointCloud2>();
             pcl_conversions::toPCL(*cloud_msg, *cloud_in);
             pcl::fromPCLPointCloud2(*cloud_in, *in_cloud);
 
