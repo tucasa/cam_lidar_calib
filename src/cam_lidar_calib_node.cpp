@@ -192,6 +192,12 @@ private:
       lidar_points_.emplace_back(Eigen::Vector3d(pt.x, pt.y, pt.z));
 
     RCLCPP_WARN_STREAM(this->get_logger(), "No of planar_pts: " << plane_filtered->points.size());
+
+    sensor_msgs::msg::PointCloud2 out_cloud;
+    pcl::toROSMsg(*plane_filtered, out_cloud);
+    out_cloud.header.frame_id = cloud_msg->header.frame_id;
+    out_cloud.header.stamp = cloud_msg->header.stamp;
+    cloud_pub_->publish(out_cloud);
     }
 
   void imageHandler(const ImageMsg::ConstSharedPtr &image_msg)
