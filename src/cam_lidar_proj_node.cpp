@@ -46,7 +46,6 @@ class LidarImageProjection : public rclcpp::Node
 public:
   LidarImageProjection() : Node("cam_lidar_proj_node")
   {
-    // ------------------ パラメータ取得 ------------------
     camera_in_topic_ = declare_and_get<std::string>("camera_in_topic", "/camera/image_raw");
     lidar_in_topic_  = declare_and_get<std::string>("lidar_in_topic",  "/points_raw");
     dist_cut_off_    = declare_and_get<int>("dist_cut_off", 50);
@@ -55,24 +54,19 @@ public:
     project_only_plane_ = declare_and_get<bool>("project_only_plane", false);
     cam_config_file_path_ = declare_and_get<std::string>("cam_config_file_path", "config.yaml");
 
-    // カメラ内部パラメータ
     projection_matrix_ = cv::Mat::zeros(3,3,CV_64F);
     distCoeff_         = cv::Mat::zeros(5,1,CV_64F);
     readCameraParams(cam_config_file_path_, image_height_, image_width_, distCoeff_, projection_matrix_);
 
-    // C_T_L 読み込み
     readCalibrationFile();
 
-    // Publishers
     std::string lidarOutTopic  = camera_in_topic_ + "/velodyne_out_cloud";
     std::string imageOutTopic  = camera_in_topic_ + "/projected_image";
     cloud_pub_ = this->create_publisher<PointCloud2>(lidarOutTopic, rclcpp::SensorDataQoS());
     image_pub_ = this->create_publisher<ImageMsg>(imageOutTopic, 10);
 
-    // TF broadcaster
     tf_broadcaster_ = std::make_shared<tf2_ros::TransformBroadcaster>(this);
 
-    // Subscribers + Synchronizer
     cloud_sub_ = std::make_shared<message_filters::Subscriber<PointCloud2>>(this, lidar_in_topic_, rclcpp::SensorDataQoS().get_rmw_qos_profile());
     image_sub_ = std::make_shared<message_filters::Subscriber<ImageMsg>>(this, camera_in_topic_, rclcpp::SensorDataQoS().get_rmw_qos_profile());
     sync_ = std::make_shared<message_filters::Synchronizer<SyncPolicy>>(SyncPolicy(10), *cloud_sub_, *image_sub_);
@@ -82,7 +76,6 @@ public:
   }
 
 private:
-  // ------------ Utility ------------------
   template<typename T>
   T declare_and_get(const std::string &name, const T &default_value)
   {
@@ -139,7 +132,6 @@ private:
     cv::eigen2cv(C_t_L_, tvec_);
   }
 
-  // ------- TF Publish -------------------
   void publishTransform(const std::string &lidar_frame)
   {
     geometry_msgs::msg::TransformStamped t;
@@ -158,7 +150,6 @@ private:
     tf_broadcaster_->sendTransform(t);
   }
 
-  // ------------- Utility functions --------------------
   static cv::Vec3b atf(const cv::Mat &rgb, const cv::Point2d &xy_f)
   {
     cv::Vec3i color_i{0,0,0};
@@ -172,7 +163,6 @@ private:
     return cv::Vec3b(color_i[0]/4, color_i[1]/4, color_i[2]/4);
   }
 
-  // ------------- Callback ------------------------------
   void callback(const PointCloud2::ConstSharedPtr &cloud_msg,
                 const ImageMsg::ConstSharedPtr &image_msg)
   {
@@ -225,7 +215,6 @@ private:
       cv::projectPoints(objectPoints_L_, rvec_, tvec_, projection_matrix_, distCoeff_, imagePoints_, cv::noArray());
     }
 
-    // カラー化した点群を生成
     colorPointCloud();
 
     PointCloud2 out_cloud_ros;
@@ -233,20 +222,18 @@ private:
     out_cloud_ros.header = cloud_msg->header;
     cloud_pub_->publish(out_cloud_ros);
 
-    // 画像に距離で色付け
     colorLidarPointsOnImage(min_range, max_range);
     auto img_msg_out = cv_bridge::CvImage(image_msg->header, "bgr8", image_in_).toImageMsg();
     image_pub_->publish(*img_msg_out);
   }
 
-  // -------------- Plane filtering helper ----------------
   pcl::PointCloud<pcl::PointXYZ>::Ptr planeFilter(const PointCloud2::ConstSharedPtr &cloud_msg)
   {
-        pcl::PointCloud<pcl::PointXYZ>::Ptr in_cloud(new pcl::PointCloud<pcl::PointXYZ>);
-        pcl::fromROSMsg(*cloud_msg, *in_cloud);
+    pcl::PointCloud<pcl::PointXYZ>::Ptr in_cloud(new pcl::PointCloud<pcl::PointXYZ>);
+    pcl::fromROSMsg(*cloud_msg, *in_cloud);
 
-        pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered_x(new pcl::PointCloud<pcl::PointXYZ>);
-        pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered_y(new pcl::PointCloud<pcl::PointXYZ>);
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered_x(new pcl::PointCloud<pcl::PointXYZ>);
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud_filtered_y(new pcl::PointCloud<pcl::PointXYZ>);
     pcl::PointCloud<pcl::PointXYZ>::Ptr plane(new pcl::PointCloud<pcl::PointXYZ>);
     pcl::PointCloud<pcl::PointXYZ>::Ptr plane_filtered(new pcl::PointCloud<pcl::PointXYZ>);
 
@@ -262,22 +249,21 @@ private:
     pass.filter(*cloud_filtered_y);
 
     pcl::SampleConsensusModelPlane<pcl::PointXYZ>::Ptr model_p(new pcl::SampleConsensusModelPlane<pcl::PointXYZ>(cloud_filtered_y));
-        pcl::RandomSampleConsensus<pcl::PointXYZ> ransac(model_p);
-        ransac.setDistanceThreshold(0.01);
-        ransac.computeModel();
+    pcl::RandomSampleConsensus<pcl::PointXYZ> ransac(model_p);
+    ransac.setDistanceThreshold(0.01);
+    ransac.computeModel();
     std::vector<int> inliers;
     ransac.getInliers(inliers);
     pcl::copyPointCloud(*cloud_filtered_y, inliers, *plane);
 
-        pcl::StatisticalOutlierRemoval<pcl::PointXYZ> sor;
-        sor.setInputCloud(plane);
+    pcl::StatisticalOutlierRemoval<pcl::PointXYZ> sor;
+    sor.setInputCloud(plane);
     sor.setMeanK(50);
     sor.setStddevMulThresh(1);
     sor.filter(*plane_filtered);
-        return plane_filtered;
+    return plane_filtered;
     }
 
-  // ------------- Point cloud color helper -------------
   void colorPointCloud()
   {
     out_cloud_pcl_.clear();
@@ -302,13 +288,11 @@ private:
       double Z = objectPoints_C_[i].z;
       double range = sqrt(X*X+Y*Y+Z*Z);
       double red_field   = 255*(range - min_range)/(max_range - min_range);
-            double green_field = 255*(max_range - range)/(max_range - min_range);
+      double green_field = 255*(max_range - range)/(max_range - min_range);
       cv::circle(image_in_, imagePoints_[i], 2, CV_RGB(red_field, green_field, 0), -1, 1, 0);
     }
   }
 
-  // -------------------- Members -----------------------
-  // Params
   std::string camera_in_topic_;
   std::string lidar_in_topic_;
   int dist_cut_off_;
@@ -318,7 +302,6 @@ private:
   std::string cam_config_file_path_;
   int image_width_{0}, image_height_{0};
 
-  // Calibration
   Eigen::Matrix4d C_T_L_;
   Eigen::Matrix4d L_T_C_;
   Eigen::Matrix3d C_R_L_, L_R_C_;
@@ -328,11 +311,9 @@ private:
   cv::Mat rvec_;
   cv::Mat tvec_;
 
-  // Camera intrinsics
   cv::Mat projection_matrix_;
   cv::Mat distCoeff_;
 
-  // ROS
   std::shared_ptr<message_filters::Subscriber<PointCloud2>> cloud_sub_;
   std::shared_ptr<message_filters::Subscriber<ImageMsg>> image_sub_;
   std::shared_ptr<message_filters::Synchronizer<SyncPolicy>> sync_;
@@ -340,7 +321,6 @@ private:
   rclcpp::Publisher<ImageMsg>::SharedPtr image_pub_;
   std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
 
-  // Processing storage
   cv::Mat image_in_;
   std::vector<cv::Point3d> objectPoints_L_, objectPoints_C_;
   std::vector<cv::Point2d> imagePoints_;
@@ -353,5 +333,5 @@ int main(int argc, char **argv)
   auto node = std::make_shared<LidarImageProjection>();
   rclcpp::spin(node);
   rclcpp::shutdown();
-    return 0;
+  return 0;
 }
