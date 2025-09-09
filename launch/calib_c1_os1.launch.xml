@@ -9,4 +9,6 @@
     <param from="$(find-pkg-share cam_lidar_calib)/config/os1_c1_camera$(var camera_id).yaml" />
   </node>
 
+  <node pkg="rviz2" exec="rviz2" name="rviz2" output="screen" args="-d $(find-pkg-share cam_lidar_calib)/rviz/calib.rviz" />
+
 </launch> 

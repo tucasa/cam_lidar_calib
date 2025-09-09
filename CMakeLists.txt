@@ -47,7 +47,7 @@ install(TARGETS
   DESTINATION lib/${PROJECT_NAME}
 )
 
-install(DIRECTORY launch config include result
+install(DIRECTORY launch config include result rviz
   DESTINATION share/${PROJECT_NAME}
 )
 
