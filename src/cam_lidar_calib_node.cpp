@@ -37,6 +37,7 @@
 #include "calibration_error_term.h"
 #include "ceres/ceres.h"
 #include "glog/logging.h"
+#include "ament_index_cpp/get_package_share_directory.hpp"
 
 
 using PointCloud2   = sensor_msgs::msg::PointCloud2;
@@ -72,11 +73,27 @@ public:
     z_max_          = declare_and_get<double>("z_max",  2.0);
     ransac_threshold_ = declare_and_get<double>("ransac_threshold", 0.01);
 
+    // resolve relative file paths against this package's share directory
+    auto resolvePathRelativeToShare = [this](const std::string &path) -> std::string {
+      if (path.empty() || (!path.empty() && path[0] == '/')) return path;
+      try {
+        const std::string share_dir = ament_index_cpp::get_package_share_directory("cam_lidar_calib");
+        return share_dir + "/" + path;
+      } catch (const std::exception &e) {
+        RCLCPP_WARN(this->get_logger(), "Failed to get package share directory: %s", e.what());
+        return path;
+      }
+    };
+    cam_config_file_path_ = resolvePathRelativeToShare(cam_config_file_path_);
+    result_str_           = resolvePathRelativeToShare(result_str_);
+    result_rpy_           = resolvePathRelativeToShare(result_rpy_);
+    initializations_file_ = resolvePathRelativeToShare(initializations_file_);
+
     projection_matrix_ = cv::Mat::zeros(3,3,CV_64F);
     dist_coeff_        = cv::Mat::zeros(5,1,CV_64F);
     readCameraParams(cam_config_file_path_, image_height_, image_width_, dist_coeff_, projection_matrix_);
 
-    cloud_pub_ = this->create_publisher<PointCloud2>("points_out", rclcpp::SensorDataQoS());
+    cloud_pub_ = this->create_publisher<PointCloud2>("points_filtered", rclcpp::SensorDataQoS());
 
     cloud_sub_  = std::make_shared<message_filters::Subscriber<PointCloud2>>(this, lidar_in_topic_, rclcpp::SensorDataQoS().get_rmw_qos_profile());
     image_sub_  = std::make_shared<message_filters::Subscriber<ImageMsg>>(this, camera_in_topic_, rclcpp::SensorDataQoS().get_rmw_qos_profile());
@@ -177,7 +194,7 @@ private:
     ransac.computeModel();
     std::vector<int> inliers;
     ransac.getInliers(inliers);
-    pcl::copyPointCloud<pcl::PointXYZ>(*cloud_filtered_z, inliers, *plane_cloud);
+    pcl::copyPointCloud<pcl::PointXYZ>(*cloud_filtered_z, inliers, *plane);
 
     // remove outliers
     pcl::StatisticalOutlierRemoval<pcl::PointXYZ> sor;
