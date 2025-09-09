@@ -1,40 +1,12 @@
 <?xml version="1.0"?>
 <launch>
+  <arg name="camera_id" default="0" />
+
   <!-- Camera-LiDAR extrinsic calibration : C1 camera + Ouster OS1-128 -->
-  <node pkg="cam_lidar_calib" exec="cam_lidar_calib_node" name="cam_lidar_calib_c1_os1" output="screen">
-    <!-- clock -->
+  <node pkg="cam_lidar_calib" exec="cam_lidar_calib_node" name="cam_lidar_calib_os1_c1_camera$(var camera_id)" output="screen">
     <param name="use_sim_time" value="false" />
-
-    <!-- checkerboard geometry [m] -->
-    <param name="dx" value="0.075" />
-    <param name="dy" value="0.075" />
-
-    <!-- checkerboard size -->
-    <param name="checkerboard_rows" value="9" />
-    <param name="checkerboard_cols" value="6" />
-
-    <!-- result file paths -->
-    <param name="result_file" value="$(find-pkg-share cam_lidar_calib)/result/C_T_L_c1_os1.txt" />
-    <param name="result_rpy_file" value="$(find-pkg-share cam_lidar_calib)/result/rpy_txyz_c1_os1.txt" />
-
-    <!-- acquisition conditions -->
-    <param name="min_points_on_plane" value="850" />
-    <param name="num_views" value="19" />
-
-    <!-- topics -->
-    <param name="camera_in_topic" value="/front_center/image_raw" />
-    <param name="lidar_in_topic" value="/ouster/points" />
-
-    <!-- plane extraction limits -->
-    <param name="x_min" value="0.0" />
-    <param name="x_max" value="6.0" />
-    <param name="y_min" value="-1.25" />
-    <param name="y_max" value="1.25" />
-    <param name="z_min" value="-0.5" />
-    <param name="z_max" value="2.0" />
-    <param name="ransac_threshold" value="0.01" />
-
-    <!-- camera intrinsics -->
-    <param name="cam_config_file_path" value="$(find-pkg-share cam_lidar_calib)/config/c1_camera0.yaml" />
+    <param from="$(find-pkg-share cam_lidar_calib)/config/checkerboard_6x9.yaml" />
+    <param from="$(find-pkg-share cam_lidar_calib)/config/os1_c1_camera$(var camera_id).yaml" />
   </node>
+
 </launch> 

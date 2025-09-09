@@ -1,0 +1,27 @@
+/**:
+  ros__parameters:
+    # file paths (resolved relative to this package's share directory by the node)
+    result_file: result/C_T_L_os1_c1_camera2.txt
+    result_rpy_file: result/rpy_txyz_os1_c1_camera2.txt
+    initializations_file: result/initializations.txt
+    cam_config_file_path: config/intrinsic/drs_c1_camera2.yaml
+
+    # acquisition conditions
+    min_points_on_plane: 2000
+    num_views: 20
+
+    # optimization conditions
+    no_of_initializations: 5
+
+    # topics
+    camera_in_topic: /image_raw
+    lidar_in_topic: /ouster/points
+
+    # plane extraction limits
+    x_min: -3.0
+    x_max: 0.0
+    y_min: 0.0
+    y_max: 3.0
+    z_min: -2.0
+    z_max: 1.0
+    ransac_threshold: 0.01 
