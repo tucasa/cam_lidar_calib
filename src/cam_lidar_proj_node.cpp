@@ -60,7 +60,7 @@ public:
 
     readCalibrationFile();
 
-    std::string lidarOutTopic  = camera_in_topic_ + "/velodyne_out_cloud";
+    std::string lidarOutTopic  = lidar_in_topic_ + "/projected_cloud";
     std::string imageOutTopic  = camera_in_topic_ + "/projected_image";
     cloud_pub_ = this->create_publisher<PointCloud2>(lidarOutTopic, rclcpp::SensorDataQoS());
     image_pub_ = this->create_publisher<ImageMsg>(imageOutTopic, 10);
@@ -86,9 +86,9 @@ private:
   }
 
   void readCameraParams(const std::string &file_path,
-                          int &image_height,
-                          int &image_width,
-                          cv::Mat &D,
+                        int &image_height,
+                        int &image_width,
+                        cv::Mat &D,
                         cv::Mat &K)
   {
     cv::FileStorage fs(file_path, cv::FileStorage::READ);
@@ -240,12 +240,12 @@ private:
     pcl::PassThrough<pcl::PointXYZ> pass;
     pass.setInputCloud(in_cloud);
     pass.setFilterFieldName("x");
-    pass.setFilterLimits(0.0, 5.0);
+    pass.setFilterLimits(0.0, 10.0);
     pass.filter(*cloud_filtered_x);
 
     pass.setInputCloud(cloud_filtered_x);
     pass.setFilterFieldName("y");
-    pass.setFilterLimits(-1.25, 1.25);
+    pass.setFilterLimits(-3.0, 3.0);
     pass.filter(*cloud_filtered_y);
 
     pcl::SampleConsensusModelPlane<pcl::PointXYZ>::Ptr model_p(new pcl::SampleConsensusModelPlane<pcl::PointXYZ>(cloud_filtered_y));
