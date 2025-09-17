@@ -95,6 +95,7 @@ public:
 
     cloud_pub_ = this->create_publisher<PointCloud2>("points_filtered", rclcpp::SensorDataQoS());
     cloud_passthrough_pub_ = this->create_publisher<PointCloud2>("points_xyz_filtered", rclcpp::SensorDataQoS());
+    image_pub_ = this->create_publisher<ImageMsg>("checker_board_image", rclcpp::SensorDataQoS());
 
     cloud_sub_  = std::make_shared<message_filters::Subscriber<PointCloud2>>(this, lidar_in_topic_, rclcpp::SensorDataQoS().get_rmw_qos_profile());
     image_sub_  = std::make_shared<message_filters::Subscriber<ImageMsg>>(this, camera_in_topic_, rclcpp::SensorDataQoS().get_rmw_qos_profile());
@@ -252,10 +253,9 @@ private:
         Nc_ = (r3_.dot(c_t_w_)) * r3_;
       }
 
-      cv::Mat image_resized;
-      cv::resize(image_in_, image_resized, cv::Size(), 0.25, 0.25);
-      cv::imshow("cam_lidar_calib/view", image_resized);
-      cv::waitKey(1);
+      // publish annotated image
+      auto out_img_ptr = cv_bridge::CvImage(image_msg->header, "bgr8", image_in_).toImageMsg();
+      image_pub_->publish(*out_img_ptr);
     }
     catch(const cv_bridge::Exception &e)
     {
@@ -387,6 +387,7 @@ private:
   std::shared_ptr<message_filters::Synchronizer<SyncPolicy>> sync_;
   rclcpp::Publisher<PointCloud2>::SharedPtr cloud_pub_;
   rclcpp::Publisher<PointCloud2>::SharedPtr cloud_passthrough_pub_;
+  rclcpp::Publisher<ImageMsg>::SharedPtr image_pub_;
 
   cv::Mat image_in_;
   cv::Mat projection_matrix_;
