@@ -94,6 +94,7 @@ public:
     readCameraParams(cam_config_file_path_, image_height_, image_width_, dist_coeff_, projection_matrix_);
 
     cloud_pub_ = this->create_publisher<PointCloud2>("points_filtered", rclcpp::SensorDataQoS());
+    cloud_passthrough_pub_ = this->create_publisher<PointCloud2>("points_xyz_filtered", rclcpp::SensorDataQoS());
 
     cloud_sub_  = std::make_shared<message_filters::Subscriber<PointCloud2>>(this, lidar_in_topic_, rclcpp::SensorDataQoS().get_rmw_qos_profile());
     image_sub_  = std::make_shared<message_filters::Subscriber<ImageMsg>>(this, camera_in_topic_, rclcpp::SensorDataQoS().get_rmw_qos_profile());
@@ -186,6 +187,13 @@ private:
     pass_z.setFilterFieldName("z");
     pass_z.setFilterLimits(z_min_, z_max_);
     pass_z.filter(*cloud_filtered_z);
+
+    // publish the xyz pass-through filtered cloud
+    sensor_msgs::msg::PointCloud2 passthrough_msg;
+    pcl::toROSMsg(*cloud_filtered_z, passthrough_msg);
+    passthrough_msg.header.frame_id = cloud_msg->header.frame_id;
+    passthrough_msg.header.stamp = cloud_msg->header.stamp;
+    cloud_passthrough_pub_->publish(passthrough_msg);
 
     // plane extraction
     pcl::SampleConsensusModelPlane<pcl::PointXYZ>::Ptr model_p(new pcl::SampleConsensusModelPlane<pcl::PointXYZ>(cloud_filtered_z));
@@ -354,7 +362,7 @@ private:
             init_file << rpy_init.transpose() << "," << tran_init.transpose() << "\n";
             init_file << (Rotn.eulerAngles(0,1,2)*180/M_PI).transpose() << "," << R_t.segment<3>(3).transpose() << "\n";
             RCLCPP_INFO(this->get_logger(), "Initialization %d finished", counter);
-      }
+          }
           init_file.close();
           rclcpp::shutdown();
         }
@@ -378,6 +386,7 @@ private:
   std::shared_ptr<message_filters::Subscriber<ImageMsg>>    image_sub_;
   std::shared_ptr<message_filters::Synchronizer<SyncPolicy>> sync_;
   rclcpp::Publisher<PointCloud2>::SharedPtr cloud_pub_;
+  rclcpp::Publisher<PointCloud2>::SharedPtr cloud_passthrough_pub_;
 
   cv::Mat image_in_;
   cv::Mat projection_matrix_;
