@@ -8,6 +8,7 @@
 #include <ctime>
 #include <fstream>
 #include <iostream>
+#include <filesystem>
 
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/point_cloud2.hpp"
@@ -60,10 +61,11 @@ public:
     camera_in_topic_         = declare_and_get<std::string>("camera_in_topic", "/camera/image_raw");
     lidar_in_topic_          = declare_and_get<std::string>("lidar_in_topic",  "/points_raw");
 
+    result_dir_              = declare_and_get<std::string>("result_dir", "result");
     cam_config_file_path_    = declare_and_get<std::string>("cam_config_file_path", "config.yaml");
-    result_str_              = declare_and_get<std::string>("result_file", "result/C_T_L.txt");
-    result_rpy_              = declare_and_get<std::string>("result_rpy_file", "result/rpy_txyz.txt");
-    initializations_file_    = declare_and_get<std::string>("initializations_file", "result/initializations.txt");
+    result_str_              = declare_and_get<std::string>("result_file", "C_T_L.txt");
+    result_rpy_              = declare_and_get<std::string>("result_rpy_file", "rpy_txyz.txt");
+    initializations_file_    = declare_and_get<std::string>("initializations_file", "initializations.txt");
 
     x_min_          = declare_and_get<double>("x_min", -10.0);
     x_max_          = declare_and_get<double>("x_max",  10.0);
@@ -85,9 +87,29 @@ public:
       }
     };
     cam_config_file_path_ = resolvePathRelativeToShare(cam_config_file_path_);
-    result_str_           = resolvePathRelativeToShare(result_str_);
-    result_rpy_           = resolvePathRelativeToShare(result_rpy_);
-    initializations_file_ = resolvePathRelativeToShare(initializations_file_);
+
+    // ensure result_dir_ exists
+    {
+      std::error_code ec;
+      std::filesystem::path dir_path(result_dir_);
+      if (!result_dir_.empty() && !std::filesystem::exists(dir_path))
+      {
+        if (!std::filesystem::create_directories(dir_path, ec))
+        {
+          RCLCPP_WARN(this->get_logger(), "Failed to create result_dir: %s (%s)", result_dir_.c_str(), ec.message().c_str());
+        }
+      }
+    }
+
+    // join result_dir_ with each result file name
+    auto joinPaths = [](const std::string &dir, const std::string &file) -> std::string {
+      if (dir.empty()) return file;
+      if (!dir.empty() && dir.back() == '/') return dir + file;
+      return dir + "/" + file;
+    };
+    result_str_           = joinPaths(result_dir_, result_str_);
+    result_rpy_           = joinPaths(result_dir_, result_rpy_);
+    initializations_file_ = joinPaths(result_dir_, initializations_file_);
 
     projection_matrix_ = cv::Mat::zeros(3,3,CV_64F);
     dist_coeff_        = cv::Mat::zeros(5,1,CV_64F);
@@ -310,6 +332,12 @@ private:
         {
           RCLCPP_INFO(this->get_logger(), "Starting optimization...");
           std::ofstream init_file(initializations_file_);
+          {
+            std::error_code ec;
+            auto abs_path = std::filesystem::absolute(initializations_file_, ec);
+            const std::string path_str = ec ? initializations_file_ : abs_path.string();
+            RCLCPP_INFO(this->get_logger(), "Initialization log path: %s", path_str.c_str());
+          }
           for(int counter = 0; counter < no_of_initializations_; ++counter)
           {
             // initialize
@@ -353,10 +381,22 @@ private:
             std::ofstream results(result_str_);
             results << C_T_L;
             results.close();
+            {
+              std::error_code ec;
+              auto abs_path = std::filesystem::absolute(result_str_, ec);
+              const std::string path_str = ec ? result_str_ : abs_path.string();
+              RCLCPP_INFO(this->get_logger(), "Wrote C_T_L to: %s", path_str.c_str());
+            }
 
             std::ofstream results_rpy(result_rpy_);
             results_rpy << Rotn.eulerAngles(0,1,2)*180/M_PI << "\n" << C_T_L.block(0,3,3,1);
             results_rpy.close();
+            {
+              std::error_code ec;
+              auto abs_path = std::filesystem::absolute(result_rpy_, ec);
+              const std::string path_str = ec ? result_rpy_ : abs_path.string();
+              RCLCPP_INFO(this->get_logger(), "Wrote RPYXYZ to: %s", path_str.c_str());
+            }
 
             // log & save initial values
             init_file << rpy_init.transpose() << "," << tran_init.transpose() << "\n";
@@ -419,6 +459,7 @@ private:
   std::string camera_in_topic_;
   std::string lidar_in_topic_;
   std::string cam_config_file_path_;
+  std::string result_dir_;
   std::string result_str_;
   std::string result_rpy_;
   std::string initializations_file_;

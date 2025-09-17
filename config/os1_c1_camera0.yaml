@@ -1,13 +1,13 @@
 /**:
   ros__parameters:
     # file paths (resolved relative to this package's share directory by the node)
-    result_file: result/C_T_L_os1_c1_camera0.txt
-    result_rpy_file: result/rpy_txyz_os1_c1_camera0.txt
-    initializations_file: result/initializations.txt
+    result_file: C_T_L_os1_c1_camera0.txt
+    result_rpy_file: rpy_txyz_os1_c1_camera0.txt
+    initializations_file: initializations_camera0.txt
     cam_config_file_path: config/intrinsic/drs_c1_camera0.yaml
 
     # acquisition conditions
-    min_points_on_plane: 2000
+    min_points_on_plane: 1500
     num_views: 20
 
     # optimization conditions
@@ -19,7 +19,7 @@
 
     # plane extraction limits
     x_min: 0.0
-    x_max: 6.0
+    x_max: 3.0
     y_min: -1.5
     y_max: 1.5
     z_min: -2.0
