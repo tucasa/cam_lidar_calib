@@ -119,6 +119,7 @@ public:
     cloud_pub_ = this->create_publisher<PointCloud2>("points_filtered", rclcpp::SensorDataQoS());
     cloud_passthrough_pub_ = this->create_publisher<PointCloud2>("points_xyz_filtered", rclcpp::SensorDataQoS());
     image_pub_ = this->create_publisher<ImageMsg>("checker_board_image", rclcpp::SensorDataQoS());
+    calib_status_pub_ = this->create_publisher<ImageMsg>("calib_status", 10);
 
     cloud_sub_  = std::make_shared<message_filters::Subscriber<PointCloud2>>(this, lidar_in_topic_, rclcpp::SensorDataQoS().get_rmw_qos_profile());
     image_sub_  = std::make_shared<message_filters::Subscriber<ImageMsg>>(this, camera_in_topic_, rclcpp::SensorDataQoS().get_rmw_qos_profile());
@@ -180,6 +181,29 @@ private:
     fs["cx"] >> K.at<double>(0,2);
     fs["cy"] >> K.at<double>(1,2);
     }
+
+  void publishCalibStatus(const rclcpp::Time &stamp, const std::string &frame_id)
+  {
+    if (!calib_status_pub_) return;
+    cv::Mat overlay = cv::Mat::zeros(cv::Size(640, 360), CV_8UC3);
+    const int baseline = 0;
+    const double font_scale = 1.5;
+    const int thickness = 2;
+    const cv::Scalar red(0,0,255);
+    const int x = 0;
+    const int y1 = 110;
+    const int y2 = 220;
+    std::string line1 = std::string("Recorded view number: ") + std::to_string(last_view_number_);
+    std::string line2 = std::string("Planar pts: ") + std::to_string(last_planar_pts_count_);
+    cv::putText(overlay, line1, cv::Point(x, y1), cv::FONT_HERSHEY_SIMPLEX, font_scale, red, thickness, cv::LINE_AA);
+    cv::putText(overlay, line2, cv::Point(x, y2), cv::FONT_HERSHEY_SIMPLEX, font_scale, red, thickness, cv::LINE_AA);
+
+    std_msgs::msg::Header header;
+    header.stamp = stamp;
+    header.frame_id = frame_id;
+    auto img_msg = cv_bridge::CvImage(header, "bgr8", overlay).toImageMsg();
+    calib_status_pub_->publish(*img_msg);
+  }
 
   void callback(const PointCloud2::ConstSharedPtr &cloud_msg, const ImageMsg::ConstSharedPtr &image_msg)
   {
@@ -247,6 +271,10 @@ private:
       lidar_points_.emplace_back(Eigen::Vector3d(pt.x, pt.y, pt.z));
 
     RCLCPP_WARN_STREAM(this->get_logger(), "No of planar_pts: " << plane_filtered->points.size());
+
+    // update planar count and publish overlay
+    last_planar_pts_count_ = static_cast<int>(plane_filtered->points.size());
+    publishCalibStatus(cloud_msg->header.stamp, cloud_msg->header.frame_id);
 
     sensor_msgs::msg::PointCloud2 out_cloud;
     pcl::toROSMsg(*plane_filtered, out_cloud);
@@ -334,6 +362,10 @@ private:
         all_normals_.push_back(Nc_);
         all_lidar_points_.push_back(lidar_points_);
         RCLCPP_INFO_STREAM(this->get_logger(), "Recording view number: " << all_normals_.size());
+
+        // update view number and publish calib status
+        last_view_number_ = static_cast<int>(all_normals_.size());
+        publishCalibStatus(this->now(), "calib_status");
 
         if(all_normals_.size() >= static_cast<size_t>(num_views_))
         {
@@ -435,6 +467,7 @@ private:
   rclcpp::Publisher<PointCloud2>::SharedPtr cloud_pub_;
   rclcpp::Publisher<PointCloud2>::SharedPtr cloud_passthrough_pub_;
   rclcpp::Publisher<ImageMsg>::SharedPtr image_pub_;
+  rclcpp::Publisher<ImageMsg>::SharedPtr calib_status_pub_;
 
   cv::Mat image_in_;
   cv::Mat projection_matrix_;
@@ -444,6 +477,8 @@ private:
   std::vector<cv::Point2f> projected_points_;
   bool boardDetectedInCam_;
   bool rational_polynomial_;
+  int last_planar_pts_count_{0};
+  int last_view_number_{0};
 
   cv::Mat tvec_, rvec_, C_R_W_;
   Eigen::Matrix3d c_R_w_;
