@@ -7,7 +7,7 @@
     cam_config_file_path: config/intrinsic/drs_c1_camera2.yaml
 
     # acquisition conditions
-    min_points_on_plane: 1500
+    min_points_on_plane: 1000
     num_views: 20
 
     # optimization conditions
@@ -18,10 +18,10 @@
     lidar_in_topic: /ouster/points
 
     # plane extraction limits
-    x_min: -3.0
-    x_max: 0.0
+    x_min: -2.0
+    x_max: 1.0
     y_min: -3.0
     y_max: 0.0
-    z_min: -2.0
+    z_min: -1.5
     z_max: 1.0
     ransac_threshold: 0.01 

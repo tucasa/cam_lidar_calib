@@ -7,7 +7,7 @@
     cam_config_file_path: config/intrinsic/drs_c1_camera6.yaml
 
     # acquisition conditions
-    min_points_on_plane: 1500
+    min_points_on_plane: 1000
     num_views: 20
 
     # optimization conditions
@@ -19,9 +19,9 @@
 
     # plane extraction limits
     x_min: 0.0
-    x_max: 6.0
+    x_max: 3.0
     y_min: -1.5
     y_max: 1.5
-    z_min: -2.0
+    z_min: -1.5
     z_max: 1.0
     ransac_threshold: 0.01 
