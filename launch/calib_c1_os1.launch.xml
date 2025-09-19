@@ -1,11 +1,12 @@
 <?xml version="1.0"?>
 <launch>
   <arg name="camera_id" default="0" />
+  <arg name="rational_polynomial" default="false" />
 
   <!-- Camera-LiDAR extrinsic calibration : C1 camera + Ouster OS1-128 -->
   <node pkg="cam_lidar_calib" exec="cam_lidar_calib_node" name="cam_lidar_calib_os1_c1_camera$(var camera_id)" output="screen">
     <param name="use_sim_time" value="false" />
-    <param name="rational_polynomial" value="true" />
+    <param name="rational_polynomial" value="$(var rational_polynomial)" />
     <param name="result_dir" value="/tmp/cam_lidar_calib/result_c1_os1_camera$(var camera_id)" />
     <param from="$(find-pkg-share cam_lidar_calib)/config/checkerboard_6x9.yaml" />
     <param from="$(find-pkg-share cam_lidar_calib)/config/os1_c1_camera$(var camera_id).yaml" />
