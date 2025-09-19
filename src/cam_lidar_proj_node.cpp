@@ -52,6 +52,7 @@ public:
     camera_name_     = declare_and_get<std::string>("camera_name", "camera");
     result_str_      = declare_and_get<std::string>("result_file", "result/C_T_L.txt");
     project_only_plane_ = declare_and_get<bool>("project_only_plane", false);
+    use_2x2_sampling_ = declare_and_get<bool>("use_2x2_sampling", true);
     cam_config_file_path_ = declare_and_get<std::string>("cam_config_file_path", "config.yaml");
 
     projection_matrix_ = cv::Mat::zeros(3,3,CV_64F);
@@ -163,6 +164,15 @@ private:
     return cv::Vec3b(color_i[0]/4, color_i[1]/4, color_i[2]/4);
   }
 
+  static cv::Vec3b at1(const cv::Mat &rgb, const cv::Point2d &xy_f)
+  {
+    int x = static_cast<int>(xy_f.x);
+    int y = static_cast<int>(xy_f.y);
+    if (x >= 0 && x < rgb.cols && y >= 0 && y < rgb.rows)
+      return rgb.at<cv::Vec3b>(cv::Point(x,y));
+    return cv::Vec3b(0,0,0);
+  }
+
   void callback(const PointCloud2::ConstSharedPtr &cloud_msg,
                 const ImageMsg::ConstSharedPtr &image_msg)
   {
@@ -270,7 +280,7 @@ private:
     out_cloud_pcl_.resize(objectPoints_L_.size());
     for(size_t i=0;i<objectPoints_L_.size();++i)
     {
-      cv::Vec3b rgb = atf(image_in_, imagePoints_[i]);
+      cv::Vec3b rgb = use_2x2_sampling_ ? atf(image_in_, imagePoints_[i]) : at1(image_in_, imagePoints_[i]);
       pcl::PointXYZRGB pt(rgb[2], rgb[1], rgb[0]);
       pt.x = objectPoints_L_[i].x;
       pt.y = objectPoints_L_[i].y;
@@ -299,6 +309,7 @@ private:
   std::string camera_name_;
   std::string result_str_;
   bool project_only_plane_;
+  bool use_2x2_sampling_;
   std::string cam_config_file_path_;
   int image_width_{0}, image_height_{0};
 
