@@ -66,6 +66,7 @@ public:
     result_str_              = declare_and_get<std::string>("result_file", "C_T_L.txt");
     result_rpy_              = declare_and_get<std::string>("result_rpy_file", "rpy_txyz.txt");
     initializations_file_    = declare_and_get<std::string>("initializations_file", "initializations.txt");
+    rational_polynomial_     = declare_and_get<bool>("rational_polynomial", false);
 
     x_min_          = declare_and_get<double>("x_min", -10.0);
     x_max_          = declare_and_get<double>("x_max",  10.0);
@@ -112,7 +113,7 @@ public:
     initializations_file_ = joinPaths(result_dir_, initializations_file_);
 
     projection_matrix_ = cv::Mat::zeros(3,3,CV_64F);
-    dist_coeff_        = cv::Mat::zeros(5,1,CV_64F);
+    dist_coeff_        = cv::Mat::zeros(rational_polynomial_ ? 8 : 5, 1, CV_64F);
     readCameraParams(cam_config_file_path_, image_height_, image_width_, dist_coeff_, projection_matrix_);
 
     cloud_pub_ = this->create_publisher<PointCloud2>("points_filtered", rclcpp::SensorDataQoS());
@@ -168,6 +169,12 @@ private:
     fs["p1"] >> D.at<double>(2);
     fs["p2"] >> D.at<double>(3);
     fs["k3"] >> D.at<double>(4);
+    if (D.rows >= 8)
+    {
+      cv::FileNode n4 = fs["k4"]; if (!n4.empty()) n4 >> D.at<double>(5); else D.at<double>(5) = 0.0;
+      cv::FileNode n5 = fs["k5"]; if (!n5.empty()) n5 >> D.at<double>(6); else D.at<double>(6) = 0.0;
+      cv::FileNode n6 = fs["k6"]; if (!n6.empty()) n6 >> D.at<double>(7); else D.at<double>(7) = 0.0;
+    }
     fs["fx"] >> K.at<double>(0,0);
     fs["fy"] >> K.at<double>(1,1);
     fs["cx"] >> K.at<double>(0,2);
@@ -436,6 +443,7 @@ private:
   std::vector<cv::Point3f> object_points_;
   std::vector<cv::Point2f> projected_points_;
   bool boardDetectedInCam_;
+  bool rational_polynomial_;
 
   cv::Mat tvec_, rvec_, C_R_W_;
   Eigen::Matrix3d c_R_w_;

@@ -53,10 +53,11 @@ public:
     result_str_      = declare_and_get<std::string>("result_file", "result/C_T_L.txt");
     project_only_plane_ = declare_and_get<bool>("project_only_plane", false);
     use_2x2_sampling_ = declare_and_get<bool>("use_2x2_sampling", true);
+    rational_polynomial_ = declare_and_get<bool>("rational_polynomial", false);
     cam_config_file_path_ = declare_and_get<std::string>("cam_config_file_path", "config.yaml");
 
     projection_matrix_ = cv::Mat::zeros(3,3,CV_64F);
-    distCoeff_         = cv::Mat::zeros(5,1,CV_64F);
+    distCoeff_         = cv::Mat::zeros(rational_polynomial_ ? 8 : 5, 1, CV_64F);
     readCameraParams(cam_config_file_path_, image_height_, image_width_, distCoeff_, projection_matrix_);
 
     readCalibrationFile();
@@ -102,6 +103,12 @@ private:
     fs["p1"] >> D.at<double>(2);
     fs["p2"] >> D.at<double>(3);
     fs["k3"] >> D.at<double>(4);
+    if (D.rows >= 8)
+    {
+      cv::FileNode n4 = fs["k4"]; if (!n4.empty()) n4 >> D.at<double>(5); else D.at<double>(5) = 0.0;
+      cv::FileNode n5 = fs["k5"]; if (!n5.empty()) n5 >> D.at<double>(6); else D.at<double>(6) = 0.0;
+      cv::FileNode n6 = fs["k6"]; if (!n6.empty()) n6 >> D.at<double>(7); else D.at<double>(7) = 0.0;
+    }
     fs["fx"] >> K.at<double>(0,0);
     fs["fy"] >> K.at<double>(1,1);
     fs["cx"] >> K.at<double>(0,2);
@@ -310,6 +317,7 @@ private:
   std::string result_str_;
   bool project_only_plane_;
   bool use_2x2_sampling_;
+  bool rational_polynomial_;
   std::string cam_config_file_path_;
   int image_width_{0}, image_height_{0};
 

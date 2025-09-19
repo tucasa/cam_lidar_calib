@@ -3,12 +3,14 @@
   <arg name="camera_id" default="0" />
   <arg name="result_file" default="C_T_L_os1_c1_camera$(var camera_id).txt" />
   <arg name="use_2x2_sampling" default="true" />
+  <arg name="rational_polynomial" default="false" />
 
   <!-- Project LiDAR points onto camera image -->
   <node pkg="cam_lidar_calib" exec="cam_lidar_proj_node" name="cam_lidar_proj_os1_c1_camera$(var camera_id)" output="screen">
     <param name="use_sim_time" value="true" />
     <param name="use_2x2_sampling" value="$(var use_2x2_sampling)" />
-
+    <param name="rational_polynomial" value="$(var rational_polynomial)" />
+    
     <!-- calibration result -->
     <param name="result_file" value="$(var result_file)" />
 
