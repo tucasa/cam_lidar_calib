@@ -4,6 +4,7 @@
   <arg name="result_file" default="C_T_L_os1_c1_camera$(var camera_id).txt" />
   <arg name="use_2x2_sampling" default="true" />
   <arg name="rational_polynomial" default="false" />
+  <arg name="undistort_image" default="false" />
   <arg name="dist_cut_off" default="5" />
   <arg name="xmin" default="-10.0" />
   <arg name="xmax" default="10.0" />
@@ -15,7 +16,8 @@
     <param name="use_sim_time" value="true" />
     <param name="use_2x2_sampling" value="$(var use_2x2_sampling)" />
     <param name="rational_polynomial" value="$(var rational_polynomial)" />
-
+    <param name="undistort_image" value="$(var undistort_image)" />
+    
     <!-- filter points -->
     <param name="xmin" value="$(var xmin)" />
     <param name="xmax" value="$(var xmax)" />

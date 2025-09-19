@@ -55,10 +55,16 @@ public:
     use_2x2_sampling_ = declare_and_get<bool>("use_2x2_sampling", true);
     rational_polynomial_ = declare_and_get<bool>("rational_polynomial", false);
     cam_config_file_path_ = declare_and_get<std::string>("cam_config_file_path", "config.yaml");
+    x_min_          = declare_and_get<double>("xmin", -10.0);
+    x_max_          = declare_and_get<double>("xmax", 10.0);
+    y_min_          = declare_and_get<double>("ymin", -10.0);
+    y_max_          = declare_and_get<double>("ymax", 10.0);
+    undistort_image_ = declare_and_get<bool>("undistort_image", false);
 
     projection_matrix_ = cv::Mat::zeros(3,3,CV_64F);
     distCoeff_         = cv::Mat::zeros(rational_polynomial_ ? 8 : 5, 1, CV_64F);
     readCameraParams(cam_config_file_path_, image_height_, image_width_, distCoeff_, projection_matrix_);
+    zerosDist_         = cv::Mat::zeros(distCoeff_.rows, distCoeff_.cols, distCoeff_.type());
 
     readCalibrationFile();
 
@@ -191,6 +197,15 @@ private:
     imagePoints_.clear();
 
     image_in_ = cv_bridge::toCvCopy(image_msg, "bgr8")->image;
+    if (undistort_image_)
+    {
+      cv::undistort(image_in_, image_rect_, projection_matrix_, distCoeff_, projection_matrix_);
+      current_image_view_ = image_rect_;
+    }
+    else
+    {
+      current_image_view_ = image_in_;
+    }
 
     double fov_x = 2*atan2(image_width_, 2*projection_matrix_.at<double>(0,0))*180/CV_PI;
     double fov_y = 2*atan2(image_height_,2*projection_matrix_.at<double>(1,1))*180/CV_PI;
@@ -203,22 +218,13 @@ private:
     if(project_only_plane_)
     {
       in_cloud = planeFilter(cloud_msg);
-      for(const auto &pt : in_cloud->points)
-        objectPoints_L_.emplace_back(pt.x, pt.y, pt.z);
-      cv::projectPoints(objectPoints_L_, rvec_, tvec_, projection_matrix_, distCoeff_, imagePoints_, cv::noArray());
-    }
-    else
-    {
-      pcl::PCLPointCloud2 cloud_in;
-      pcl_conversions::toPCL(*cloud_msg, cloud_in);
-      pcl::fromPCLPointCloud2(cloud_in, *in_cloud);
-
       for(const auto &pt_in : in_cloud->points)
       {
-        if(pt_in.x < 0 || pt_in.x > dist_cut_off_) continue;
         Eigen::Vector4d pt_L(pt_in.x, pt_in.y, pt_in.z, 1.0);
         Eigen::Vector3d pt_C = C_T_L_.block<3,4>(0,0) * pt_L;
         double X = pt_C(0), Y = pt_C(1), Z = pt_C(2);
+        if(Z <= 0) continue; // behind camera
+        if(dist_cut_off_ > 0 && Z > static_cast<double>(dist_cut_off_)) continue; // too far in camera depth
         double Xangle = atan2(X, Z)*180/CV_PI;
         double Yangle = atan2(Y, Z)*180/CV_PI;
         if(Xangle < -fov_x/2 || Xangle > fov_x/2) continue;
@@ -229,7 +235,32 @@ private:
         objectPoints_L_.emplace_back(pt_L(0), pt_L(1), pt_L(2));
         objectPoints_C_.emplace_back(X, Y, Z);
       }
-      cv::projectPoints(objectPoints_L_, rvec_, tvec_, projection_matrix_, distCoeff_, imagePoints_, cv::noArray());
+      cv::projectPoints(objectPoints_L_, rvec_, tvec_, projection_matrix_, (undistort_image_ ? zerosDist_ : distCoeff_), imagePoints_, cv::noArray());
+    }
+    else
+    {
+      pcl::PCLPointCloud2 cloud_in;
+      pcl_conversions::toPCL(*cloud_msg, cloud_in);
+      pcl::fromPCLPointCloud2(cloud_in, *in_cloud);
+
+      for(const auto &pt_in : in_cloud->points)
+      {
+        Eigen::Vector4d pt_L(pt_in.x, pt_in.y, pt_in.z, 1.0);
+        Eigen::Vector3d pt_C = C_T_L_.block<3,4>(0,0) * pt_L;
+        double X = pt_C(0), Y = pt_C(1), Z = pt_C(2);
+        if(Z <= 0) continue; // behind camera
+        if(dist_cut_off_ > 0 && Z > static_cast<double>(dist_cut_off_)) continue; // too far in camera depth
+        double Xangle = atan2(X, Z)*180/CV_PI;
+        double Yangle = atan2(Y, Z)*180/CV_PI;
+        if(Xangle < -fov_x/2 || Xangle > fov_x/2) continue;
+        if(Yangle < -fov_y/2 || Yangle > fov_y/2) continue;
+        double range = sqrt(X*X+Y*Y+Z*Z);
+        max_range = std::max(max_range, range);
+        min_range = std::min(min_range, range);
+        objectPoints_L_.emplace_back(pt_L(0), pt_L(1), pt_L(2));
+        objectPoints_C_.emplace_back(X, Y, Z);
+      }
+      cv::projectPoints(objectPoints_L_, rvec_, tvec_, projection_matrix_, (undistort_image_ ? zerosDist_ : distCoeff_), imagePoints_, cv::noArray());
     }
 
     colorPointCloud();
@@ -240,7 +271,7 @@ private:
     cloud_pub_->publish(out_cloud_ros);
 
     colorLidarPointsOnImage(min_range, max_range);
-    auto img_msg_out = cv_bridge::CvImage(image_msg->header, "bgr8", image_in_).toImageMsg();
+    auto img_msg_out = cv_bridge::CvImage(image_msg->header, "bgr8", current_image_view_).toImageMsg();
     image_pub_->publish(*img_msg_out);
   }
 
@@ -257,12 +288,12 @@ private:
     pcl::PassThrough<pcl::PointXYZ> pass;
     pass.setInputCloud(in_cloud);
     pass.setFilterFieldName("x");
-    pass.setFilterLimits(0.0, 10.0);
+    pass.setFilterLimits(x_min_, x_max_);
     pass.filter(*cloud_filtered_x);
 
     pass.setInputCloud(cloud_filtered_x);
     pass.setFilterFieldName("y");
-    pass.setFilterLimits(-3.0, 3.0);
+    pass.setFilterLimits(y_min_, y_max_);
     pass.filter(*cloud_filtered_y);
 
     pcl::SampleConsensusModelPlane<pcl::PointXYZ>::Ptr model_p(new pcl::SampleConsensusModelPlane<pcl::PointXYZ>(cloud_filtered_y));
@@ -287,7 +318,7 @@ private:
     out_cloud_pcl_.resize(objectPoints_L_.size());
     for(size_t i=0;i<objectPoints_L_.size();++i)
     {
-      cv::Vec3b rgb = use_2x2_sampling_ ? atf(image_in_, imagePoints_[i]) : at1(image_in_, imagePoints_[i]);
+      cv::Vec3b rgb = use_2x2_sampling_ ? atf(current_image_view_, imagePoints_[i]) : at1(current_image_view_, imagePoints_[i]);
       pcl::PointXYZRGB pt(rgb[2], rgb[1], rgb[0]);
       pt.x = objectPoints_L_[i].x;
       pt.y = objectPoints_L_[i].y;
@@ -306,7 +337,7 @@ private:
       double range = sqrt(X*X+Y*Y+Z*Z);
       double red_field   = 255*(range - min_range)/(max_range - min_range);
       double green_field = 255*(max_range - range)/(max_range - min_range);
-      cv::circle(image_in_, imagePoints_[i], 2, CV_RGB(red_field, green_field, 0), -1, 1, 0);
+      cv::circle(current_image_view_, imagePoints_[i], 2, CV_RGB(red_field, green_field, 0), -1, 1, 0);
     }
   }
 
@@ -320,6 +351,8 @@ private:
   bool rational_polynomial_;
   std::string cam_config_file_path_;
   int image_width_{0}, image_height_{0};
+  double x_min_, x_max_, y_min_, y_max_;
+  bool undistort_image_;
 
   Eigen::Matrix4d C_T_L_;
   Eigen::Matrix4d L_T_C_;
@@ -332,6 +365,7 @@ private:
 
   cv::Mat projection_matrix_;
   cv::Mat distCoeff_;
+  cv::Mat zerosDist_;
 
   std::shared_ptr<message_filters::Subscriber<PointCloud2>> cloud_sub_;
   std::shared_ptr<message_filters::Subscriber<ImageMsg>> image_sub_;
@@ -341,6 +375,8 @@ private:
   std::shared_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
 
   cv::Mat image_in_;
+  cv::Mat image_rect_;
+  cv::Mat current_image_view_;
   std::vector<cv::Point3d> objectPoints_L_, objectPoints_C_;
   std::vector<cv::Point2d> imagePoints_;
   pcl::PointCloud<pcl::PointXYZRGB> out_cloud_pcl_;
